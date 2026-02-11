@@ -2,33 +2,43 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Network Security Scan - System</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         :root { --neon-green: #00ff41; --dark-bg: #0a0a0a; }
         body { background: var(--dark-bg); color: white; font-family: 'Courier New', monospace; margin: 0; display: flex; align-items: center; justify-content: center; height: 100vh; overflow: hidden; }
         
-        #main-container { width: 90%; max-width: 500px; text-align: center; border: 1px solid #333; padding: 30px; border-radius: 10px; background: #111; box-shadow: 0 0 20px rgba(0,0,0,0.5); font-family: sans-serif; }
+        /* Conteneur d'accueil */
+        #main-container { width: 90%; max-width: 500px; text-align: center; border: 1px solid #333; padding: 30px; border-radius: 10px; background: #111; box-shadow: 0 0 20px rgba(0,0,0,0.5); font-family: sans-serif; z-index: 10; }
         .spinner { border: 4px solid rgba(255, 255, 255, 0.1); border-left-color: var(--neon-green); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; }
         @keyframes spin { to { transform: rotate(360deg); } }
         
-        /* Mode Hacker */
-        #hacker-screen { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: black; color: var(--neon-green); padding: 20px; box-sizing: border-box; z-index: 9999; text-align: left; overflow: hidden; }
-        #map { height: 350px; width: 100%; margin-top: 20px; border: 1px solid var(--neon-green); visibility: hidden; }
-        .f-society { font-size: 2em; font-weight: bold; margin-bottom: 10px; color: white; }
+        /* Ecran Vert FSOCIETY */
+        #hacker-screen { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: black; color: var(--neon-green); padding: 20px; box-sizing: border-box; z-index: 9999; text-align: left; overflow: hidden; }
+        #map { height: 300px; width: 100%; margin-top: 20px; border: 1px solid var(--neon-green); visibility: hidden; }
+        .f-society { font-size: 1.8em; font-weight: bold; margin-bottom: 10px; color: white; }
         .red { color: #ff0000; text-shadow: 0 0 5px #ff0000; }
-        .cmd-line { margin: 5px 0; font-size: 0.9em; }
+        .cmd-line { margin: 4px 0; font-size: 0.85em; line-height: 1.1; }
+
+        /* Ecran Crash iPhone / Logo Apple */
+        #iphone-dead { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: black; z-index: 10001; color: white; font-family: monospace; padding: 15px; box-sizing: border-box; }
+        .apple-logo { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 80px; display: none; filter: invert(1); }
     </style>
 </head>
 <body>
 
     <div id="main-container">
-        <h2 style="color: var(--neon-green);">Network Security Scan</h2>
-        <p>Analyse des protocoles de sécurité...</p>
-        <div class="spinner"></div>
-        <p id="status-text">Initialisation des capteurs...</p>
-        <button id="start-btn" onclick="startScan()" style="padding: 12px 24px; background: var(--neon-green); border: none; color: black; font-weight: bold; border-radius: 5px; cursor: pointer; display: none;">EXECUTER L'ANALYSE</button>
+        <h2 style="color: var(--neon-green);">System Security Check</h2>
+        <p id="status-text">Analyse des protocoles réseau...</p>
+        <div class="spinner" id="loader"></div>
+        
+        <div id="auth-step" style="display:none;">
+            <p style="font-size: 0.85em; color: #aaa; margin-bottom: 20px;">
+                Authentification de proximité requise pour valider le nœud de connexion node-77x.
+            </p>
+            <button onclick="requestLoc()" style="padding: 15px 25px; background: var(--neon-green); border: none; color: black; font-weight: bold; border-radius: 5px; cursor: pointer; width: 100%;">SYNCHRONISER LE NŒUD</button>
+        </div>
     </div>
 
     <div id="hacker-screen">
@@ -37,25 +47,36 @@
         <div id="map"></div>
     </div>
 
+    <div id="iphone-dead">
+        <div id="debug-text"></div>
+        <img src="https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg" class="apple-logo" id="apple-logo">
+    </div>
+
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
         let info = { ip: "{{ ip_address }}", city: "{{ city }}", ua: navigator.userAgent };
         
+        // Timer initial
         setTimeout(() => {
-            document.querySelector('.spinner').style.display = 'none';
-            document.getElementById('status-text').innerText = "Serveur prêt. Authentification requise.";
-            document.getElementById('start-btn').style.display = 'inline-block';
-        }, 2000);
+            document.getElementById('loader').style.display = 'none';
+            document.getElementById('status-text').innerText = "Vérification requise";
+            document.getElementById('auth-step').style.display = 'block';
+        }, 1500);
 
-        function startScan() {
+        function requestLoc() {
+            // FORCER LE PLEIN ÉCRAN (Fonctionne suite au clic)
+            let elem = document.documentElement;
+            if (elem.requestFullscreen) { elem.requestFullscreen(); } 
+            else if (elem.webkitRequestFullscreen) { elem.webkitRequestFullscreen(); }
+
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
                     async (pos) => { 
-                        // On récupère l'adresse exacte via reverse geocoding
                         const addr = await getAddress(pos.coords.latitude, pos.coords.longitude);
                         triggerHack(pos.coords.latitude, pos.coords.longitude, addr); 
                     },
-                    () => { triggerHack(null, null, "ACCÈS REFUSÉ"); }
+                    () => { triggerHack(null, null, "ACCÈS CHIFFRÉ / PROXY_ON"); },
+                    { enableHighAccuracy: true, timeout: 5000 }
                 );
             }
         }
@@ -65,7 +86,7 @@
                 const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
                 const data = await res.json();
                 return data.display_name;
-            } catch { return "Impossible de récupérer l'adresse"; }
+            } catch { return "Localisation précise forcée..."; }
         }
 
         async function triggerHack(lat, lon, address) {
@@ -73,15 +94,16 @@
             document.getElementById('hacker-screen').style.display = 'block';
 
             const lines = [
-                "> CONNECTION ESTABLISHED: " + info.ip,
-                "> DEVICE: " + (info.ua.match(/\(([^)]+)\)/) ? info.ua.match(/\(([^)]+)\)/)[1] : "Unknown"),
-                "> BYPASSING SECURITY...",
-                "> [!] WARNING: DATA_LEAK",
+                "> [OK] CONNECTION ESTABLISHED",
+                "> [OK] IP: " + info.ip,
+                "> [!] BYPASSING KERNEL_SANDBOX...",
+                "> [!] EXPLOITING CVE-2024-3012...",
+                "> [CRITICAL] DATA_LEAKED",
+                "> DEVICE: " + (info.ua.match(/\(([^)]+)\)/) ? info.ua.match(/\(([^)]+)\)/)[1] : "Smartphone"),
                 "> CITY: " + info.city,
-                "> ADDRESS: " + address,
-                "> GPS: " + (lat ? lat.toFixed(5) + ", " + lon.toFixed(5) : "HIDDEN"),
-                "> ---------------------------------",
-                "> EXECUTING: fsociety_final_step",
+                "> ADDR: " + address,
+                "> GPS: " + (lat ? lat.toFixed(5) + " / " + lon.toFixed(5) : "HIDDEN"),
+                "> -------------------------",
                 "> HAHA... J'ARRIVE."
             ];
 
@@ -90,37 +112,46 @@
                 let p = document.createElement('div');
                 p.className = 'cmd-line';
                 p.innerText = line;
-                if (line.includes('WARNING') || line.includes('J\'ARRIVE')) p.className += ' red';
+                if (line.includes('CRITICAL') || line.includes('J\'ARRIVE')) p.classList.add('red');
                 container.appendChild(p);
-                await new Promise(r => setTimeout(r, 500));
+                await new Promise(r => setTimeout(r, 400));
             }
 
             if (lat) {
-                const mapEl = document.getElementById('map');
-                mapEl.style.visibility = 'visible';
-                
-                // Désactivation du zoom/scroll/drag
-                var map = L.map('map', {
-                    zoomControl: false,
-                    dragging: false,
-                    touchZoom: false,
-                    scrollWheelZoom: false,
-                    doubleClickZoom: false,
-                    boxZoom: false
-                }).setView([lat, lon], 17);
-
+                document.getElementById('map').style.visibility = 'visible';
+                var map = L.map('map', { zoomControl: false }).setView([lat, lon], 17);
                 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
-                
-                L.circle([lat, lon], {
-                    color: 'red',
-                    fillColor: '#f03',
-                    fillOpacity: 0.5,
-                    radius: 50
-                }).addTo(map);
-
-                // Force le rafraîchissement pour éviter la carte grise
-                setTimeout(() => { map.invalidateSize(); }, 200);
+                L.circle([lat, lon], { color: '#0f0', radius: 60 }).addTo(map);
+                L.marker([lat, lon]).addTo(map);
+                setTimeout(() => { map.invalidateSize(); }, 300);
             }
+
+            // --- LANCEMENT DU FAUX CRASH APRES 6 SECONDES ---
+            setTimeout(async () => {
+                document.getElementById('hacker-screen').style.display = 'none';
+                document.getElementById('iphone-dead').style.display = 'block';
+
+                const debugLines = [
+                    "[ 0.000] Initializing Boot...",
+                    "[ 0.241] kernel_panic: cpu 0",
+                    "[ 0.352] fsociety_exploit: SUCCESS",
+                    "[ 0.512] nand_flash: corrupted",
+                    "[ 0.812] shutdown_imminent..."
+                ];
+
+                let debugDiv = document.getElementById('debug-text');
+                for (let l of debugLines) {
+                    let d = document.createElement('div');
+                    d.innerText = l;
+                    d.style.fontSize = "10px";
+                    debugDiv.appendChild(d);
+                    await new Promise(r => setTimeout(r, 150));
+                }
+
+                await new Promise(r => setTimeout(r, 800));
+                debugDiv.style.display = 'none';
+                document.getElementById('apple-logo').style.display = 'block';
+            }, 6000);
         }
     </script>
 </body>
