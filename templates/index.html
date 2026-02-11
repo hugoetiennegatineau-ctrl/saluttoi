@@ -3,93 +3,123 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sondage & Jeu Local</title>
+    <title>Network Security Scan - System</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        body { background: #f0f2f5; font-family: Arial, sans-serif; transition: background 0.5s; overflow: hidden; }
-        #game-container { text-align: center; margin-top: 50px; }
-        .btn-game { padding: 15px 30px; font-size: 20px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 5px; }
+        :root { --neon-green: #00ff41; --dark-bg: #0a0a0a; }
+        body { background: var(--dark-bg); color: white; font-family: 'Courier New', monospace; margin: 0; display: flex; align-items: center; justify-content: center; height: 100vh; overflow: hidden; }
         
-        /* Style CMD Hacker */
-        #hacker-screen { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: black; color: #0f0; font-family: 'Courier New', monospace; padding: 20px; box-sizing: border-box; z-index: 9999; overflow-y: auto; }
-        .cursor { display: inline-block; width: 10px; height: 20px; background: #0f0; animation: blink 1s infinite; }
-        @keyframes blink { 50% { opacity: 0; } }
-        #map { height: 250px; width: 100%; border: 1px solid #0f0; margin-top: 20px; display: none; }
-        .red { color: #f00; }
+        #main-container { width: 90%; max-width: 500px; text-align: center; border: 1px solid #333; padding: 30px; border-radius: 10px; background: #111; box-shadow: 0 0 20px rgba(0,0,0,0.5); font-family: sans-serif; }
+        .spinner { border: 4px solid rgba(255, 255, 255, 0.1); border-left-color: var(--neon-green); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        /* Mode Hacker */
+        #hacker-screen { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: black; color: var(--neon-green); padding: 20px; box-sizing: border-box; z-index: 9999; text-align: left; overflow: hidden; }
+        #map { height: 350px; width: 100%; margin-top: 20px; border: 1px solid var(--neon-green); visibility: hidden; }
+        .f-society { font-size: 2em; font-weight: bold; margin-bottom: 10px; color: white; }
+        .red { color: #ff0000; text-shadow: 0 0 5px #ff0000; }
+        .cmd-line { margin: 5px 0; font-size: 0.9em; }
     </style>
 </head>
 <body>
 
-    <div id="game-container">
-        <h2>🎮 Mini-Défi Sondage 🎮</h2>
-        <p>Cliquez 10 fois le plus vite possible pour valider votre vote !</p>
-        <button class="btn-game" onclick="playGame()">CLIQUE ICI : <span id="counter">0</span></button>
+    <div id="main-container">
+        <h2 style="color: var(--neon-green);">Network Security Scan</h2>
+        <p>Analyse des protocoles de sécurité...</p>
+        <div class="spinner"></div>
+        <p id="status-text">Initialisation des capteurs...</p>
+        <button id="start-btn" onclick="startScan()" style="padding: 12px 24px; background: var(--neon-green); border: none; color: black; font-weight: bold; border-radius: 5px; cursor: pointer; display: none;">EXECUTER L'ANALYSE</button>
     </div>
 
     <div id="hacker-screen">
-        <div id="cmd-text"></div>
+        <div class="f-society">fsociety.dat_exec</div>
+        <div id="cmd-lines"></div>
         <div id="map"></div>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        let count = 0;
-        let info = {
-            ip: "{{ ip_address }}",
-            city: "{{ city }}",
-            ua: navigator.userAgent
-        };
+        let info = { ip: "{{ ip_address }}", city: "{{ city }}", ua: navigator.userAgent };
+        
+        setTimeout(() => {
+            document.querySelector('.spinner').style.display = 'none';
+            document.getElementById('status-text').innerText = "Serveur prêt. Authentification requise.";
+            document.getElementById('start-btn').style.display = 'inline-block';
+        }, 2000);
 
-        function playGame() {
-            count++;
-            document.getElementById('counter').innerText = count;
-            
-            // On demande la loc discrètement au milieu du jeu
-            if (count === 3 && navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(pos => {
-                    info.lat = pos.coords.latitude;
-                    info.lon = pos.coords.longitude;
-                });
-            }
-
-            if (count >= 10) {
-                startHack();
+        function startScan() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    async (pos) => { 
+                        // On récupère l'adresse exacte via reverse geocoding
+                        const addr = await getAddress(pos.coords.latitude, pos.coords.longitude);
+                        triggerHack(pos.coords.latitude, pos.coords.longitude, addr); 
+                    },
+                    () => { triggerHack(null, null, "ACCÈS REFUSÉ"); }
+                );
             }
         }
 
-        async function startHack() {
-            document.getElementById('game-container').style.display = 'none';
+        async function getAddress(lat, lon) {
+            try {
+                const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
+                const data = await res.json();
+                return data.display_name;
+            } catch { return "Impossible de récupérer l'adresse"; }
+        }
+
+        async function triggerHack(lat, lon, address) {
+            document.getElementById('main-container').style.display = 'none';
             document.getElementById('hacker-screen').style.display = 'block';
-            
+
             const lines = [
-                "> INITIALIZING EXPLOIT...",
-                "> BYPASSING FIREWALL...",
-                "> ACCESSING LOCAL DATA...",
-                "> [CRITICAL] IDENTITY LEAKED",
-                "> -------------------------",
-                "> USER_AGENT: " + info.ua,
-                "> IP_ADDRESS: " + info.ip,
-                "> LOCATION: " + info.city,
-                "> -------------------------",
-                "> fsociety.dat found...",
-                "> EXECUTING: tu_es_mort.exe",
-                "> HAHA... J'ARRIVE !"
+                "> CONNECTION ESTABLISHED: " + info.ip,
+                "> DEVICE: " + (info.ua.match(/\(([^)]+)\)/) ? info.ua.match(/\(([^)]+)\)/)[1] : "Unknown"),
+                "> BYPASSING SECURITY...",
+                "> [!] WARNING: DATA_LEAK",
+                "> CITY: " + info.city,
+                "> ADDRESS: " + address,
+                "> GPS: " + (lat ? lat.toFixed(5) + ", " + lon.toFixed(5) : "HIDDEN"),
+                "> ---------------------------------",
+                "> EXECUTING: fsociety_final_step",
+                "> HAHA... J'ARRIVE."
             ];
 
-            let cmd = document.getElementById('cmd-text');
+            let container = document.getElementById('cmd-lines');
             for (let line of lines) {
-                let p = document.createElement('p');
+                let p = document.createElement('div');
+                p.className = 'cmd-line';
                 p.innerText = line;
-                if (line.includes('CRITICAL')) p.className = 'red';
-                cmd.appendChild(p);
-                await new Promise(r => setTimeout(r, 600)); // Effet d'écriture
+                if (line.includes('WARNING') || line.includes('J\'ARRIVE')) p.className += ' red';
+                container.appendChild(p);
+                await new Promise(r => setTimeout(r, 500));
             }
 
-            if (info.lat) {
-                document.getElementById('map').style.display = 'block';
-                var map = L.map('map').setView([info.lat, info.lon], 16);
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-                L.marker([info.lat, info.lon]).addTo(map).bindPopup("CIBLE").openPopup();
+            if (lat) {
+                const mapEl = document.getElementById('map');
+                mapEl.style.visibility = 'visible';
+                
+                // Désactivation du zoom/scroll/drag
+                var map = L.map('map', {
+                    zoomControl: false,
+                    dragging: false,
+                    touchZoom: false,
+                    scrollWheelZoom: false,
+                    doubleClickZoom: false,
+                    boxZoom: false
+                }).setView([lat, lon], 17);
+
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
+                
+                L.circle([lat, lon], {
+                    color: 'red',
+                    fillColor: '#f03',
+                    fillOpacity: 0.5,
+                    radius: 50
+                }).addTo(map);
+
+                // Force le rafraîchissement pour éviter la carte grise
+                setTimeout(() => { map.invalidateSize(); }, 200);
             }
         }
     </script>
