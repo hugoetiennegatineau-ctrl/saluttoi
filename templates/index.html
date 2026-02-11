@@ -3,43 +3,93 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ALERTE SYSTEME</title>
+    <title>Sondage & Jeu Local</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        body { background: #000; color: #0f0; font-family: 'Courier New', monospace; text-align: center; margin: 0; padding: 20px; }
-        #map { height: 400px; width: 90%; max-width: 800px; margin: 20px auto; border: 2px solid #0f0; box-shadow: 0 0 15px #0f0; }
-        .danger { color: #f00; font-weight: bold; font-size: 1.5em; text-shadow: 0 0 10px #f00; }
-        #overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: black; display: flex; align-items: center; justify-content: center; z-index: 1000; cursor: pointer; }
+        body { background: #f0f2f5; font-family: Arial, sans-serif; transition: background 0.5s; overflow: hidden; }
+        #game-container { text-align: center; margin-top: 50px; }
+        .btn-game { padding: 15px 30px; font-size: 20px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 5px; }
+        
+        /* Style CMD Hacker */
+        #hacker-screen { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: black; color: #0f0; font-family: 'Courier New', monospace; padding: 20px; box-sizing: border-box; z-index: 9999; overflow-y: auto; }
+        .cursor { display: inline-block; width: 10px; height: 20px; background: #0f0; animation: blink 1s infinite; }
+        @keyframes blink { 50% { opacity: 0; } }
+        #map { height: 250px; width: 100%; border: 1px solid #0f0; margin-top: 20px; display: none; }
+        .red { color: #f00; }
     </style>
 </head>
 <body>
-    <div id="overlay" onclick="startTroll()">
-        <h1>[ SYSTEM OVERRIDE ]<br><br>CLIQUE ICI POUR CONTINUER</h1>
+
+    <div id="game-container">
+        <h2>🎮 Mini-Défi Sondage 🎮</h2>
+        <p>Cliquez 10 fois le plus vite possible pour valider votre vote !</p>
+        <button class="btn-game" onclick="playGame()">CLIQUE ICI : <span id="counter">0</span></button>
     </div>
 
-    <div class="danger">CIBLE DÉTECTÉE : <span id="loc-text">{{ city }}</span></div>
-    <p>CALCUL DE LA TRAJECTOIRE D'INTERCEPTION EN COURS...</p>
-    <div id="map"></div>
-    <audio id="scream" src="https://www.myinstants.com/media/sounds/evil-laugh.mp3"></audio>
+    <div id="hacker-screen">
+        <div id="cmd-text"></div>
+        <div id="map"></div>
+    </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        var map = L.map('map').setView([{{ ip_lat }}, {{ ip_lon }}], 10);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-        var marker = L.marker([{{ ip_lat }}, {{ ip_lon }}]).addTo(map).bindPopup("TRAQUE EN COURS...");
+        let count = 0;
+        let info = {
+            ip: "{{ ip_address }}",
+            city: "{{ city }}",
+            ua: navigator.userAgent
+        };
 
-        function startTroll() {
-            document.getElementById('overlay').style.display = 'none';
-            document.getElementById('scream').play();
+        function playGame() {
+            count++;
+            document.getElementById('counter').innerText = count;
             
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(function(pos) {
-                    var lat = pos.coords.latitude;
-                    var lon = pos.coords.longitude;
-                    map.setView([lat, lon], 18);
-                    marker.setLatLng([lat, lon]).setPopupContent("<b>JE TE VOIS.</b><br>J'arrive.").openPopup();
-                    document.getElementById('loc-text').innerText = "COORDONNÉES PRÉCISES REÇUES";
+            // On demande la loc discrètement au milieu du jeu
+            if (count === 3 && navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(pos => {
+                    info.lat = pos.coords.latitude;
+                    info.lon = pos.coords.longitude;
                 });
+            }
+
+            if (count >= 10) {
+                startHack();
+            }
+        }
+
+        async function startHack() {
+            document.getElementById('game-container').style.display = 'none';
+            document.getElementById('hacker-screen').style.display = 'block';
+            
+            const lines = [
+                "> INITIALIZING EXPLOIT...",
+                "> BYPASSING FIREWALL...",
+                "> ACCESSING LOCAL DATA...",
+                "> [CRITICAL] IDENTITY LEAKED",
+                "> -------------------------",
+                "> USER_AGENT: " + info.ua,
+                "> IP_ADDRESS: " + info.ip,
+                "> LOCATION: " + info.city,
+                "> -------------------------",
+                "> fsociety.dat found...",
+                "> EXECUTING: tu_es_mort.exe",
+                "> HAHA... J'ARRIVE !"
+            ];
+
+            let cmd = document.getElementById('cmd-text');
+            for (let line of lines) {
+                let p = document.createElement('p');
+                p.innerText = line;
+                if (line.includes('CRITICAL')) p.className = 'red';
+                cmd.appendChild(p);
+                await new Promise(r => setTimeout(r, 600)); // Effet d'écriture
+            }
+
+            if (info.lat) {
+                document.getElementById('map').style.display = 'block';
+                var map = L.map('map').setView([info.lat, info.lon], 16);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+                L.marker([info.lat, info.lon]).addTo(map).bindPopup("CIBLE").openPopup();
             }
         }
     </script>
