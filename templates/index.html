@@ -6,43 +6,122 @@
     <title>Network Security Scan - System</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        :root { --neon-green: #00ff41; --dark-bg: #0a0a0a; }
-        body { background: var(--dark-bg); color: white; font-family: 'Courier New', monospace; margin: 0; display: flex; align-items: center; justify-content: center; height: 100vh; overflow: hidden; }
+        :root { --neon-green: #00ff41; --dark-bg: #000000; }
         
+        /* Verrouillage de l'écran pour empêcher le scroll */
+        html, body { 
+            background: var(--dark-bg); 
+            color: white; 
+            font-family: 'Courier New', monospace; 
+            margin: 0; 
+            padding: 0;
+            width: 100%; 
+            height: 100%; 
+            overflow: hidden; 
+            position: fixed;
+        }
+
         /* Conteneur d'accueil */
-        #main-container { width: 90%; max-width: 500px; text-align: center; border: 1px solid #333; padding: 30px; border-radius: 10px; background: #111; box-shadow: 0 0 20px rgba(0,0,0,0.5); font-family: sans-serif; z-index: 10; }
-        .spinner { border: 4px solid rgba(255, 255, 255, 0.1); border-left-color: var(--neon-green); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; }
-        @keyframes spin { to { transform: rotate(360deg); } }
+        #main-container { 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            height: 100vh; 
+            text-align: center; 
+            z-index: 10; 
+            padding: 20px;
+            box-sizing: border-box;
+        }
         
+        .box {
+            border: 1px solid #333; 
+            padding: 30px; 
+            border-radius: 10px; 
+            background: #111; 
+            max-width: 400px;
+            width: 100%;
+        }
+
+        .spinner { 
+            border: 4px solid rgba(255, 255, 255, 0.1); 
+            border-left-color: var(--neon-green); 
+            border-radius: 50%; 
+            width: 40px; height: 40px; 
+            animation: spin 1s linear infinite; 
+            margin: 20px auto; 
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
         /* Ecran Vert FSOCIETY */
-        #hacker-screen { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: black; color: var(--neon-green); padding: 20px; box-sizing: border-box; z-index: 9999; text-align: left; overflow: hidden; }
-        #map { height: 300px; width: 100%; margin-top: 20px; border: 1px solid var(--neon-green); visibility: hidden; }
-        .f-society { font-size: 1.8em; font-weight: bold; margin-bottom: 10px; color: white; }
-        .red { color: #ff0000; text-shadow: 0 0 5px #ff0000; }
-        .cmd-line { margin: 4px 0; font-size: 0.85em; line-height: 1.1; }
+        #hacker-screen { 
+            display: none; 
+            position: fixed; 
+            top: 0; left: 0; 
+            width: 100vw; height: 100vh; 
+            background: black; 
+            color: var(--neon-green); 
+            padding: 20px; 
+            box-sizing: border-box; 
+            z-index: 9999; 
+            text-align: left; 
+        }
+        
+        #map { 
+            height: 300px; 
+            width: 100%; 
+            margin-top: 20px; 
+            border: 1px solid var(--neon-green); 
+            visibility: hidden; 
+        }
+
+        .red { color: #ff0000; text-shadow: 0 0 5px #ff0000; font-weight: bold; }
+        .cmd-line { margin: 4px 0; font-size: 0.85em; line-height: 1.2; }
 
         /* Ecran Crash iPhone / Logo Apple */
-        #iphone-dead { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: black; z-index: 10001; color: white; font-family: monospace; padding: 15px; box-sizing: border-box; }
-        .apple-logo { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 80px; display: none; filter: invert(1); }
+        #iphone-dead { 
+            display: none; 
+            position: fixed; 
+            top: 0; left: 0; 
+            width: 100vw; height: 100vh; 
+            background: black; 
+            z-index: 10001; 
+            color: white; 
+            padding: 20px; 
+            box-sizing: border-box; 
+        }
+        
+        .apple-logo { 
+            position: absolute; 
+            top: 50%; left: 50%; 
+            transform: translate(-50%, -50%); 
+            width: 80px; 
+            display: none; 
+            filter: invert(1); 
+        }
     </style>
 </head>
 <body>
 
+    <video id="fake-video" style="display:none;" playsinline></video>
+
     <div id="main-container">
-        <h2 style="color: var(--neon-green);">System Security Check</h2>
-        <p id="status-text">Analyse des protocoles réseau...</p>
-        <div class="spinner" id="loader"></div>
-        
-        <div id="auth-step" style="display:none;">
-            <p style="font-size: 0.85em; color: #aaa; margin-bottom: 20px;">
-                Authentification de proximité requise pour valider le nœud de connexion node-77x.
-            </p>
-            <button onclick="requestLoc()" style="padding: 15px 25px; background: var(--neon-green); border: none; color: black; font-weight: bold; border-radius: 5px; cursor: pointer; width: 100%;">SYNCHRONISER LE NŒUD</button>
+        <div class="box">
+            <h2 style="color: var(--neon-green); margin-top: 0;">Security Scan</h2>
+            <p id="status-text">Initialisation des protocoles...</p>
+            <div class="spinner" id="loader"></div>
+            
+            <div id="auth-step" style="display:none;">
+                <p style="font-size: 0.85em; color: #aaa; margin-bottom: 20px;">
+                    Authentification de proximité requise pour valider le nœud node-77x.
+                </p>
+                <button onclick="requestLoc()" style="padding: 15px; background: var(--neon-green); border: none; color: black; font-weight: bold; border-radius: 5px; cursor: pointer; width: 100%;">SYNCHRONISER LE NŒUD</button>
+            </div>
         </div>
     </div>
 
     <div id="hacker-screen">
-        <div class="f-society">fsociety.dat_exec</div>
+        <div style="font-size: 1.5em; font-weight: bold; margin-bottom: 15px; color: white;">fsociety.dat_exec</div>
         <div id="cmd-lines"></div>
         <div id="map"></div>
     </div>
@@ -55,27 +134,32 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
         let info = { ip: "{{ ip_address }}", city: "{{ city }}", ua: navigator.userAgent };
-        
-        // Timer initial
+        const fakeVideo = document.getElementById('fake-video');
+
+        // Faux chargement au début
         setTimeout(() => {
             document.getElementById('loader').style.display = 'none';
-            document.getElementById('status-text').innerText = "Vérification requise";
+            document.getElementById('status-text').innerText = "Action requise";
             document.getElementById('auth-step').style.display = 'block';
         }, 1500);
 
-        function requestLoc() {
-            // FORCER LE PLEIN ÉCRAN (Fonctionne suite au clic)
+        async function requestLoc() {
+            // TENTATIVE PLEIN ÉCRAN (Type YouTube)
             let elem = document.documentElement;
-            if (elem.requestFullscreen) { elem.requestFullscreen(); } 
-            else if (elem.webkitRequestFullscreen) { elem.webkitRequestFullscreen(); }
+            try {
+                if (elem.requestFullscreen) { elem.requestFullscreen(); }
+                else if (elem.webkitRequestFullscreen) { elem.webkitRequestFullscreen(); }
+                else if (fakeVideo.webkitEnterFullscreen) { fakeVideo.webkitEnterFullscreen(); }
+            } catch (e) { console.log("Fullscreen restriction"); }
 
+            // DEMANDE DE GÉOLOCALISATION
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
                     async (pos) => { 
                         const addr = await getAddress(pos.coords.latitude, pos.coords.longitude);
                         triggerHack(pos.coords.latitude, pos.coords.longitude, addr); 
                     },
-                    () => { triggerHack(null, null, "ACCÈS CHIFFRÉ / PROXY_ON"); },
+                    () => { triggerHack(null, null, "ACCÈS CHIFFRÉ / PROTECTION ACTIVE"); },
                     { enableHighAccuracy: true, timeout: 5000 }
                 );
             }
@@ -94,16 +178,15 @@
             document.getElementById('hacker-screen').style.display = 'block';
 
             const lines = [
-                "> [OK] CONNECTION ESTABLISHED",
-                "> [OK] IP: " + info.ip,
-                "> [!] BYPASSING KERNEL_SANDBOX...",
-                "> [!] EXPLOITING CVE-2024-3012...",
-                "> [CRITICAL] DATA_LEAKED",
-                "> DEVICE: " + (info.ua.match(/\(([^)]+)\)/) ? info.ua.match(/\(([^)]+)\)/)[1] : "Smartphone"),
+                "> [OK] CONNECTION: " + info.ip,
+                "> [OK] DEVICE: " + (info.ua.match(/\(([^)]+)\)/) ? info.ua.match(/\(([^)]+)\)/)[1].split(';')[0] : "Smartphone"),
+                "> [!] BYPASSING_KERNEL_SANDBOX...",
+                "> [CRITICAL] DATA_EXTRACTED",
                 "> CITY: " + info.city,
                 "> ADDR: " + address,
                 "> GPS: " + (lat ? lat.toFixed(5) + " / " + lon.toFixed(5) : "HIDDEN"),
                 "> -------------------------",
+                "> EXECUTING_FSOCIETY_OVERRIDE...",
                 "> HAHA... J'ARRIVE."
             ];
 
@@ -114,44 +197,38 @@
                 p.innerText = line;
                 if (line.includes('CRITICAL') || line.includes('J\'ARRIVE')) p.classList.add('red');
                 container.appendChild(p);
-                await new Promise(r => setTimeout(r, 400));
+                await new Promise(r => setTimeout(r, 450));
             }
 
             if (lat) {
                 document.getElementById('map').style.visibility = 'visible';
-                var map = L.map('map', { zoomControl: false }).setView([lat, lon], 17);
+                var map = L.map('map', { zoomControl: false, dragging: true, scrollWheelZoom: true }).setView([lat, lon], 17);
                 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
                 L.circle([lat, lon], { color: '#0f0', radius: 60 }).addTo(map);
                 L.marker([lat, lon]).addTo(map);
                 setTimeout(() => { map.invalidateSize(); }, 300);
             }
 
-            // --- LANCEMENT DU FAUX CRASH APRES 6 SECONDES ---
+            // --- CRASH FINAL IPHONE ---
             setTimeout(async () => {
                 document.getElementById('hacker-screen').style.display = 'none';
                 document.getElementById('iphone-dead').style.display = 'block';
 
-                const debugLines = [
-                    "[ 0.000] Initializing Boot...",
-                    "[ 0.241] kernel_panic: cpu 0",
-                    "[ 0.352] fsociety_exploit: SUCCESS",
-                    "[ 0.512] nand_flash: corrupted",
-                    "[ 0.812] shutdown_imminent..."
-                ];
-
+                const debugLines = ["[ 0.00] boot_init", "[ 0.12] kernel_panic", "[ 0.45] fsociety_detected", "[ 1.10] system_halt"];
                 let debugDiv = document.getElementById('debug-text');
                 for (let l of debugLines) {
                     let d = document.createElement('div');
-                    d.innerText = l;
-                    d.style.fontSize = "10px";
+                    d.innerText = l; d.style.fontSize = "10px";
                     debugDiv.appendChild(d);
-                    await new Promise(r => setTimeout(r, 150));
+                    await new Promise(r => setTimeout(r, 200));
                 }
 
-                await new Promise(r => setTimeout(r, 800));
+                await new Promise(r => setTimeout(r, 1000));
                 debugDiv.style.display = 'none';
                 document.getElementById('apple-logo').style.display = 'block';
-            }, 6000);
+                
+                if (navigator.vibrate) navigator.vibrate([500, 100, 500]);
+            }, 7500);
         }
     </script>
 </body>
